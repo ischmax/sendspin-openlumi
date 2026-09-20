@@ -11,7 +11,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE:=v$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli/archive/refs/tags/
-PKG_HASH:=d4fa6ea0f8ab7702ac072fe55613041d34eb2f9a069dc3e3d628fe444b7807c7
+PKG_HASH:=baa9febbc08d58e1780d6a62fb0b20d458cd1a3cbb177929ba5f4ff0b01d335c
 PKG_BUILD_DIR:=$(BUILD_DIR)/sendspin-cpp-cli-$(PKG_VERSION)
 
 PKG_LICENSE:=Apache-2.0
