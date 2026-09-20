@@ -7,13 +7,12 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=sendspin-cli
 PKG_VERSION:=0.3.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli.git
-# Pin to a tag or commit hash for reproducible builds (e.g. v0.3.0 if that tag exists).
-PKG_SOURCE_VERSION:=FIXED_COMMIT_HASH
-PKG_MIRROR_HASH:=bd36afc2da66b01aa0a2c6118d78665f91e096b02de4b7189b9f4a4cc1b2fdfb
+PKG_SOURCE:=v$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli/archive/refs/tags/
+PKG_HASH:=baa9febbc08d58e1780d6a62fb0b20d458cd1a3cbb177929ba5f4ff0b01d335c
+PKG_BUILD_DIR:=$(BUILD_DIR)/sendspin-cpp-cli-$(PKG_VERSION)
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
@@ -28,7 +27,7 @@ define Package/sendspin-cli
 	CATEGORY:=Sound
 	TITLE:=Sendspin synchronized audio player (headless, ALSA)
 	URL:=https://github.com/Sendspin/sendspin-cpp-cli
-	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +libopenssl +libsodium
+	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +mdnsd +libopenssl +libsodium
 endef
 
 define Package/sendspin-cli/description
@@ -40,9 +39,9 @@ define Package/sendspin-cli/conffiles
 /etc/sendspin-cli.conf
 endef
 
-# Only the ALSA backend is wanted on the gateway. mDNS is disabled: OpenWrt has no
-# dns_sd.h out of the box, so the player dials the server itself ("server = ..." in
-# /etc/sendspin-cli.conf).
+# Only the ALSA backend is wanted on the gateway. mDNS uses OpenWrt's mdnsd package,
+# which provides dns_sd.h/libdns_sd through the SDK staging directory and the runtime
+# mDNS responder on the gateway.
 # NOTE: sendspin-cpp and its dependencies are fetched by CMake FetchContent during
 # configure, so the build machine needs network access (fine on GitHub Actions).
 CMAKE_OPTIONS += \
