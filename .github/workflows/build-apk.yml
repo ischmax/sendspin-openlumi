@@ -1,0 +1,35 @@
+name: Build sendspin-cli .apk for OpenLumi (arm_cortex-a7_neon-vfpv4)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # OpenLumi 25.12.x reports: architecture arm_cortex-a7_neon-vfpv4, GCC 14.3.0, musl 1.2.5,
+      # which matches the upstream OpenWrt 25.12 SDK image for this arch.
+      # If this tag is not found, look up the exact one in the gh-action-sdk README / ghcr.io/openwrt/sdk.
+      ARCH: arm_cortex-a7_neon-vfpv4-openwrt-25.12
+      FEED_DIR: ${{ github.workspace }}/feed
+      PACKAGES: sendspin-cli
+      NO_REFRESH_CHECK: "true"
+      V: s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build package with OpenWrt SDK
+        uses: openwrt/gh-action-sdk@main
+
+      - name: Collect .apk
+        run: |
+          mkdir -p out
+          find bin -name 'sendspin-cli*.apk' -exec cp -v {} out/ \;
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sendspin-cli-apk
+          path: out/*.apk
