@@ -28,7 +28,7 @@ define Package/sendspin-cli
 	CATEGORY:=Sound
 	TITLE:=Sendspin synchronized audio player (headless, ALSA)
 	URL:=https://github.com/Sendspin/sendspin-cpp-cli
-	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib
+	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +libopenssl +libsodium
 endef
 
 define Package/sendspin-cli/description
@@ -51,7 +51,7 @@ CMAKE_OPTIONS += \
 	-DSENDSPIN_CLI_WITH_PORTAUDIO=OFF \
 	-DSENDSPIN_CLI_WITH_PULSE=OFF \
 	-DSENDSPIN_CLI_WITH_PIPEWIRE=OFF \
-	-DSENDSPIN_CLI_WITH_MDNS=OFF \
+	-DSENDSPIN_CLI_WITH_MDNS=ON \
 	-DCMAKE_BUILD_TYPE=Release
 
 TARGET_LDFLAGS += -latomic
