@@ -27,7 +27,7 @@ define Package/sendspin-cli
 	CATEGORY:=Sound
 	TITLE:=Sendspin synchronized audio player (headless, ALSA)
 	URL:=https://github.com/Sendspin/sendspin-cpp-cli
-	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +mdnsd +libopenssl +libsodium
+	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +libavahi-compat-libdnssd +libavahi-client +libopenssl +libsodium
 endef
 
 define Package/sendspin-cli/description
