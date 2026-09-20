@@ -13,7 +13,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli.git
 # Pin to a tag or commit hash for reproducible builds (e.g. v0.3.0 if that tag exists).
 PKG_SOURCE_VERSION:=main
-PKG_MIRROR_HASH:=skip
+PKG_MIRROR_HASH:=bd36afc2da66b01aa0a2c6118d78665f91e096b02de4b7189b9f4a4cc1b2fdfb
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
