@@ -8,7 +8,7 @@ apk-tools (как в Alpine), а не Android. Поэтому «клиент Sen
 Содержимое:
 
 ```
-feed/sendspin-cli/Makefile              рецепт пакета (cmake, только ALSA, без mDNS)
+feed/sendspin-cli/Makefile              рецепт пакета (cmake, ALSA + mDNS через mdnsd)
 feed/sendspin-cli/files/sendspin-cli.init   procd-сервис
 feed/sendspin-cli/files/sendspin-cli.conf   конфиг /etc/sendspin-cli.conf
 .github/workflows/build-apk.yml         сборка .apk в GitHub Actions
@@ -47,7 +47,8 @@ scp sendspin-cli-*.apk root@<ip-шлюза>:/tmp/
 ssh root@<ip-шлюза>
 apk add --allow-untrusted /tmp/sendspin-cli-*.apk     # alsa-lib, libstdcpp, libatomic, zlib подтянутся из фидов
 sendspin-cli -l                                         # список ALSA-устройств
-vi /etc/sendspin-cli.conf                               # server = <IP Music Assistant>, output = ...
+vi /etc/sendspin-cli.conf                               # output = ...; server обычно не нужен
+/etc/init.d/mdnsd enable && /etc/init.d/mdnsd start     # mDNS responder
 /etc/init.d/sendspin-cli enable && /etc/init.d/sendspin-cli start
 logread -e sendspin
 sendspin-cli status
@@ -59,6 +60,6 @@ sendspin-cli status
 ## Ограничения
 
 - Сборка **не тестировалась** на железе. Рецепт написан по документации sendspin-cpp-cli и данным о вашей прошивке.
-- mDNS в этой сборке отключён (в OpenWrt нет `dns_sd.h` из коробки), поэтому плеер сам подключается к серверу: в конфиге нужен `server = ...`.
-- `PKG_SOURCE_VERSION:=main` — при желании замените на тег или хэш коммита.
+- mDNS включён через OpenWrt-пакет `mdnsd`; оставьте `server` закомментированным, чтобы
+  Music Assistant обнаружил плеер по `_sendspin._tcp` и подключился к порту 8928.
 - Sendspin сейчас в статусе Release Candidate 1, а sendspin-cpp-cli — молодой проект; возможны изменения флагов и поведения.

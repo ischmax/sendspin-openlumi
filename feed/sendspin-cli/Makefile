@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=sendspin-cli
 PKG_VERSION:=0.3.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=v$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli/archive/refs/tags/
@@ -27,7 +27,7 @@ define Package/sendspin-cli
 	CATEGORY:=Sound
 	TITLE:=Sendspin synchronized audio player (headless, ALSA)
 	URL:=https://github.com/Sendspin/sendspin-cpp-cli
-	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib
+	DEPENDS:=+libstdcpp +libatomic +alsa-lib +zlib +mdnsd
 endef
 
 define Package/sendspin-cli/description
@@ -39,9 +39,9 @@ define Package/sendspin-cli/conffiles
 /etc/sendspin-cli.conf
 endef
 
-# Only the ALSA backend is wanted on the gateway. mDNS is disabled: OpenWrt has no
-# dns_sd.h out of the box, so the player dials the server itself ("server = ..." in
-# /etc/sendspin-cli.conf).
+# Only the ALSA backend is wanted on the gateway. mDNS uses OpenWrt's mdnsd package,
+# which provides dns_sd.h/libdns_sd through the SDK staging directory and the runtime
+# mDNS responder on the gateway.
 # NOTE: sendspin-cpp and its dependencies are fetched by CMake FetchContent during
 # configure, so the build machine needs network access (fine on GitHub Actions).
 CMAKE_OPTIONS += \
@@ -50,7 +50,7 @@ CMAKE_OPTIONS += \
 	-DSENDSPIN_CLI_WITH_PORTAUDIO=OFF \
 	-DSENDSPIN_CLI_WITH_PULSE=OFF \
 	-DSENDSPIN_CLI_WITH_PIPEWIRE=OFF \
-	-DSENDSPIN_CLI_WITH_MDNS=OFF \
+	-DSENDSPIN_CLI_WITH_MDNS=ON \
 	-DCMAKE_BUILD_TYPE=Release
 
 TARGET_LDFLAGS += -latomic

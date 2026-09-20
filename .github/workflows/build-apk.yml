@@ -14,7 +14,7 @@ jobs:
       # If this tag is not found, look up the exact one in the gh-action-sdk README / ghcr.io/openwrt/sdk.
       ARCH: arm_cortex-a7_neon-vfpv4-openwrt-25.12
       FEED_DIR: ${{ github.workspace }}/feed
-      PACKAGES: sendspin-cli
+      PACKAGES: sendspin-cli mdnsd
       NO_REFRESH_CHECK: "true"
       NO_SHFMT_CHECK: "true"
       V: s
@@ -27,7 +27,7 @@ jobs:
       - name: Collect .apk
         run: |
           mkdir -p out
-          find bin -name 'sendspin-cli*.apk' -exec cp -v {} out/ \;
+          find bin \( -name 'sendspin-cli*.apk' -o -name 'mdnsd*.apk' \) -exec cp -v {} out/ \;
           ls -l out
 
       - uses: actions/upload-artifact@v4
