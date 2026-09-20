@@ -14,7 +14,9 @@ jobs:
       # If this tag is not found, look up the exact one in the gh-action-sdk README / ghcr.io/openwrt/sdk.
       ARCH: arm_cortex-a7_neon-vfpv4-openwrt-25.12
       FEED_DIR: ${{ github.workspace }}/feed
-      PACKAGES: sendspin-cli mdnsd
+      # mdnsd is a subpackage of the mdnsresponder feed recipe; naming the
+      # recipe here lets the SDK expose dns_sd.h/libdns_sd for sendspin-cli.
+      PACKAGES: sendspin-cli mdnsresponder
       NO_REFRESH_CHECK: "true"
       NO_SHFMT_CHECK: "true"
       V: s
