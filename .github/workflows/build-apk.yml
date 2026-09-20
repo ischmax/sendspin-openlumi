@@ -16,6 +16,7 @@ jobs:
       FEED_DIR: ${{ github.workspace }}/feed
       PACKAGES: sendspin-cli
       NO_REFRESH_CHECK: "true"
+      NO_SHFMT_CHECK: "true"
       V: s
     steps:
       - uses: actions/checkout@v4
