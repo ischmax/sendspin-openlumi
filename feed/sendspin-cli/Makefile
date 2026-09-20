@@ -9,13 +9,9 @@ PKG_NAME:=sendspin-cli
 PKG_VERSION:=0.3.0
 PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli.git
-# Use the released CLI version and commit, not the moving main branch. The
-# OpenWrt SDK can then create the source archive from GitHub when no mirror copy
-# exists.
-PKG_SOURCE_VERSION:=f86840af2887469091201b9fd7caa76452909f7b
-PKG_MIRROR_HASH:=skip
+PKG_SOURCE:=sendspin-cpp-cli-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://github.com/Sendspin/sendspin-cpp-cli/archive/refs/tags/v$(PKG_VERSION)
+PKG_HASH:=d4fa6ea0f8ab7702ac072fe55613041d34eb2f9a069dc3e3d628fe444b7807c7
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
