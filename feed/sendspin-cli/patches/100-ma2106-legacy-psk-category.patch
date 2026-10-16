@@ -1,6 +1,6 @@
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -59,1 +59,238 @@
+@@ -59,1 +59,292 @@
  FetchContent_MakeAvailable(sendspin)
 +
 +# Music Assistant 2.10.x uses aiosendspin 9.x, whose Noise msg1 payload contains
@@ -238,4 +238,58 @@
 +    string(REPLACE "${_sendspin_pair_methods_old}" "${_sendspin_pair_methods_new}"
 +        _sendspin_protocol_after_pair_methods "${_sendspin_protocol_after_commands}")
 +    file(WRITE "${_sendspin_protocol_source}" "${_sendspin_protocol_after_pair_methods}")
++endif()
++# The 9.1.1 server also repeats server/hello after a pairing-PSK re-handshake
++# and waits for client/hello again. Newer Sendspin peers skip both hellos on a
++# re-handshake. Reply only when an already-admitted connection is waiting for
++# its first activate again: that distinguishes the legacy flow from first connect.
++set(_sendspin_dispatch_source "${sendspin_SOURCE_DIR}/src/client_dispatch.cpp")
++if(NOT EXISTS "${_sendspin_dispatch_source}")
++    message(FATAL_ERROR "Cannot apply legacy re-handshake compatibility: ${_sendspin_dispatch_source} not found")
++endif()
++file(READ "${_sendspin_dispatch_source}" _sendspin_dispatch_original)
++set(_sendspin_dispatch_old [=[
++                // server_id comes from the Noise handshake result (already set on the
++                // connection); server/hello supplies the display name.
++                ServerInformationObject info = conn->get_server_information();
++                info.name = hello_msg.name;
++                conn->set_server_information(std::move(info));
++                conn->set_server_source_codecs(hello_msg.source_codecs);
++                // The nursery scan later in this tick sends client/hello in reply; nothing
++                // needs to be scheduled here.
++                conn->set_server_hello_received(true);
++]=])
++set(_sendspin_dispatch_new [=[
++                // On initial connect, the nursery replies with client/hello. MA 2.10.x also
++                // repeats server/hello after its legacy re-handshake and waits for client/hello,
++                // while current Sendspin peers proceed directly to server/activate.
++                const bool legacy_rehandshake_hello =
++                    conn->is_admitted() && !conn->first_activate_received();
++                ServerInformationObject info = conn->get_server_information();
++                info.name = hello_msg.name;
++                conn->set_server_information(std::move(info));
++                conn->set_server_source_codecs(hello_msg.source_codecs);
++                conn->set_server_hello_received(true);
++                if (legacy_rehandshake_hello) {
++                    const std::string hello = this->build_hello_message();
++                    const SsErr err = conn->send_app_json(hello);
++                    if (err == SsErr::OK) {
++                        conn->set_client_hello_sent(true);
++                        SS_LOGI(TAG, "Replied to legacy post-re-handshake server/hello");
++                    } else {
++                        SS_LOGW(TAG,
++                                "Failed to reply to legacy post-re-handshake server/hello (err=%d)",
++                                static_cast<int>(err));
++                    }
++                }
++]=])
++string(FIND "${_sendspin_dispatch_original}" "${_sendspin_dispatch_new}" _sendspin_dispatch_already_applied)
++if(_sendspin_dispatch_already_applied EQUAL -1)
++    string(FIND "${_sendspin_dispatch_original}" "${_sendspin_dispatch_old}" _sendspin_dispatch_found)
++    if(_sendspin_dispatch_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch legacy re-handshake: SERVER_HELLO handler block not found")
++    endif()
++    string(REPLACE "${_sendspin_dispatch_old}" "${_sendspin_dispatch_new}"
++        _sendspin_dispatch_patched "${_sendspin_dispatch_original}")
++    file(WRITE "${_sendspin_dispatch_source}" "${_sendspin_dispatch_patched}")
 +endif()
