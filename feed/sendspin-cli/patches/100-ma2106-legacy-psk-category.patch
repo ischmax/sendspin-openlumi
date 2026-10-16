@@ -1,6 +1,6 @@
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -59,1 +59,80 @@
+@@ -59,1 +59,79 @@
  FetchContent_MakeAvailable(sendspin)
 +
 +# Music Assistant 2.10.x uses aiosendspin 9.x, whose Noise msg1 payload contains
