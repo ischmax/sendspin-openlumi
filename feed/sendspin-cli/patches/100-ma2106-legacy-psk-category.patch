@@ -7,12 +7,12 @@
 +# psk_id but predates the required psk_category field. Keep category-aware
 +# verification for modern peers, but infer the category from the matching local
 +# credential when talking to that legacy server.
-+set(_sendspin_noise_handshake_source "\${sendspin_SOURCE_DIR}/src/noise_handshake.cpp")
-+if(NOT EXISTS "\${_sendspin_noise_handshake_source}")
-+    message(FATAL_ERROR "Cannot apply legacy Sendspin PSK-category compatibility: \${_sendspin_noise_handshake_source} not found")
++set(_sendspin_noise_handshake_source "${sendspin_SOURCE_DIR}/src/noise_handshake.cpp")
++if(NOT EXISTS "${_sendspin_noise_handshake_source}")
++    message(FATAL_ERROR "Cannot apply legacy Sendspin PSK-category compatibility: ${_sendspin_noise_handshake_source} not found")
 +endif()
 +
-+file(READ "\${_sendspin_noise_handshake_source}" _sendspin_noise_original)
++file(READ "${_sendspin_noise_handshake_source}" _sendspin_noise_original)
 +set(_sendspin_noise_old [=[
 +    auto psk_category = psk_category_from_string(psk_category_code);
 +    if (!psk_category.has_value()) {
@@ -70,13 +70,13 @@
 +    SS_LOGD(TAG, "%s: psk_id='%s' psk_category='%s'", log_prefix, psk_id.c_str(),
 +            psk_category_code.c_str());
 +]=])
-+string(FIND "\${_sendspin_noise_original}" "\${_sendspin_noise_new}" _sendspin_compat_already_applied)
++string(FIND "${_sendspin_noise_original}" "${_sendspin_noise_new}" _sendspin_compat_already_applied)
 +if(_sendspin_compat_already_applied EQUAL -1)
-+    string(FIND "\${_sendspin_noise_original}" "\${_sendspin_noise_old}" _sendspin_compat_old_found)
++    string(FIND "${_sendspin_noise_original}" "${_sendspin_noise_old}" _sendspin_compat_old_found)
 +    if(_sendspin_compat_old_found EQUAL -1)
-+        message(FATAL_ERROR "Cannot patch sendspin-cpp \${SENDSPIN_GIT_TAG}: expected PSK-category parser was not found")
++        message(FATAL_ERROR "Cannot patch sendspin-cpp ${SENDSPIN_GIT_TAG}: expected PSK-category parser was not found")
 +    endif()
-+    string(REPLACE "\${_sendspin_noise_old}" "\${_sendspin_noise_new}" _sendspin_noise_patched
-+        "\${_sendspin_noise_original}")
-+    file(WRITE "\${_sendspin_noise_handshake_source}" "\${_sendspin_noise_patched}")
++    string(REPLACE "${_sendspin_noise_old}" "${_sendspin_noise_new}" _sendspin_noise_patched
++        "${_sendspin_noise_original}")
++    file(WRITE "${_sendspin_noise_handshake_source}" "${_sendspin_noise_patched}")
 +endif()
