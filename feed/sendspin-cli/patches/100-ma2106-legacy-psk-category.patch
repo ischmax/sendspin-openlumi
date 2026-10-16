@@ -1,6 +1,6 @@
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -59,1 +59,78 @@
+@@ -59,1 +59,236 @@
  FetchContent_MakeAvailable(sendspin)
 +
 +# Music Assistant 2.10.x uses aiosendspin 9.x, whose Noise msg1 payload contains
@@ -78,4 +78,162 @@
 +    string(REPLACE "${_sendspin_noise_old}" "${_sendspin_noise_new}" _sendspin_noise_patched
 +        "${_sendspin_noise_original}")
 +    file(WRITE "${_sendspin_noise_handshake_source}" "${_sendspin_noise_patched}")
++endif()
++# Music Assistant 2.10.x ships aiosendspin 9.1.1. That parser expects the
++# older client/hello schema: supported_pair_methods is a list of descriptors,
++# and player@v1_support includes supported_commands. The newer C++ library
++# emits a map and omits that field, so adapt the generated source at configure time.
++set(_sendspin_player_support_header "${sendspin_SOURCE_DIR}/src/protocol_messages.h")
++set(_sendspin_player_role_source "${sendspin_SOURCE_DIR}/src/player_role.cpp")
++set(_sendspin_protocol_source "${sendspin_SOURCE_DIR}/src/protocol.cpp")
++foreach(_file IN ITEMS
++        "${_sendspin_player_support_header}"
++        "${_sendspin_player_role_source}"
++        "${_sendspin_protocol_source}")
++    if(NOT EXISTS "${_file}")
++        message(FATAL_ERROR "Cannot apply Music Assistant 2.10.x client/hello compatibility: ${_file} not found")
++    endif()
++endforeach()
++
++# Preserve the player's actual volume/mute capability in the legacy hello schema.
++file(READ "${_sendspin_player_support_header}" _sendspin_support_header_original)
++set(_sendspin_support_header_old [=[
++struct PlayerSupportObject {
++    std::vector<AudioSupportedFormatObject> supported_formats{};
++    size_t buffer_capacity{};
++};
++]=])
++set(_sendspin_support_header_new [=[
++struct PlayerSupportObject {
++    std::vector<AudioSupportedFormatObject> supported_formats{};
++    size_t buffer_capacity{};
++    std::vector<SendspinPlayerCommand> supported_commands{};
++};
++]=])
++string(FIND "${_sendspin_support_header_original}" "${_sendspin_support_header_new}" _sendspin_support_header_already_applied)
++if(_sendspin_support_header_already_applied EQUAL -1)
++    string(FIND "${_sendspin_support_header_original}" "${_sendspin_support_header_old}" _sendspin_support_header_found)
++    if(_sendspin_support_header_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch legacy hello schema: PlayerSupportObject definition not found")
++    endif()
++    string(REPLACE "${_sendspin_support_header_old}" "${_sendspin_support_header_new}"
++        _sendspin_support_header_patched "${_sendspin_support_header_original}")
++    file(WRITE "${_sendspin_player_support_header}" "${_sendspin_support_header_patched}")
++endif()
++
++file(READ "${_sendspin_player_role_source}" _sendspin_player_role_original)
++set(_sendspin_player_role_old [=[
++    PlayerSupportObject player_support = {
++        .supported_formats = this->config.audio_formats,
++        .buffer_capacity = this->advertised_buffer_capacity(),
++    };
++]=])
++set(_sendspin_player_role_new [=[
++    PlayerSupportObject player_support = {
++        .supported_formats = this->config.audio_formats,
++        .buffer_capacity = this->advertised_buffer_capacity(),
++    };
++    if (this->volume_adjustable) {
++        player_support.supported_commands.push_back(SendspinPlayerCommand::VOLUME);
++    }
++    if (this->mute_adjustable) {
++        player_support.supported_commands.push_back(SendspinPlayerCommand::MUTE);
++    }
++]=])
++string(FIND "${_sendspin_player_role_original}" "${_sendspin_player_role_new}" _sendspin_player_role_already_applied)
++if(_sendspin_player_role_already_applied EQUAL -1)
++    string(FIND "${_sendspin_player_role_original}" "${_sendspin_player_role_old}" _sendspin_player_role_found)
++    if(_sendspin_player_role_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch legacy hello schema: PlayerRole hello support block not found")
++    endif()
++    string(REPLACE "${_sendspin_player_role_old}" "${_sendspin_player_role_new}"
++        _sendspin_player_role_patched "${_sendspin_player_role_original}")
++    file(WRITE "${_sendspin_player_role_source}" "${_sendspin_player_role_patched}")
++endif()
++
++file(READ "${_sendspin_protocol_source}" _sendspin_protocol_original)
++set(_sendspin_support_wire_old [=[
++        root["payload"]["player@v1_support"]["buffer_capacity"] =
++            msg->player_v1_support.value().buffer_capacity;
++]=])
++set(_sendspin_support_wire_new [=[
++        root["payload"]["player@v1_support"]["buffer_capacity"] =
++            msg->player_v1_support.value().buffer_capacity;
++        JsonArray commands_list =
++            root["payload"]["player@v1_support"]["supported_commands"].to<JsonArray>();
++        for (const auto& command : msg->player_v1_support.value().supported_commands) {
++            commands_list.add(to_cstr(command));
++        }
++]=])
++string(FIND "${_sendspin_protocol_original}" "${_sendspin_support_wire_new}" _sendspin_support_wire_already_applied)
++if(_sendspin_support_wire_already_applied EQUAL -1)
++    string(FIND "${_sendspin_protocol_original}" "${_sendspin_support_wire_old}" _sendspin_support_wire_found)
++    if(_sendspin_support_wire_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch legacy hello schema: player supported_commands serializer not found")
++    endif()
++    string(REPLACE "${_sendspin_support_wire_old}" "${_sendspin_support_wire_new}"
++        _sendspin_protocol_after_commands "${_sendspin_protocol_original}")
++    file(WRITE "${_sendspin_protocol_source}" "${_sendspin_protocol_after_commands}")
++endif()
++
++# Emit only the shared Pairing PSK method in the form understood by aiosendspin
++# 9.1.1. This retains token pairing; the newer dynamic-code descriptor uses a
++# different method name and descriptor shape that the older server cannot parse.
++set(_sendspin_pair_methods_old [=[
++    {
++        JsonObject methods_obj = root["payload"]["supported_pair_methods"].to<JsonObject>();
++        for (const auto& desc : msg->supported_pair_methods) {
++            JsonObject method_obj = methods_obj[to_cstr(desc.method)].to<JsonObject>();
++            const auto& out_channels = desc.out_channels;
++            if (out_channels.has_value() && !out_channels->empty()) {
++                JsonArray ch_arr = method_obj["out_channels"].to<JsonArray>();
++                for (const auto& ch : out_channels.value()) {
++                    ch_arr.add(to_cstr(ch));
++                }
++            }
++            const auto& formats = desc.formats;
++            if (formats.has_value() && !formats->empty()) {
++                JsonArray fmt_arr = method_obj["formats"].to<JsonArray>();
++                for (const auto& fmt : formats.value()) {
++                    fmt_arr.add(to_cstr(fmt));
++                }
++            }
++            const auto& locations = desc.locations;
++            if (locations.has_value() && !locations->empty()) {
++                JsonArray loc_arr = method_obj["locations"].to<JsonArray>();
++                for (const auto& loc : locations.value()) {
++                    loc_arr.add(loc.c_str());
++                }
++            }
++        }
++    }
++]=])
++set(_sendspin_pair_methods_new [=[
++    {
++        JsonArray methods_array = root["payload"]["supported_pair_methods"].to<JsonArray>();
++        for (const auto& desc : msg->supported_pair_methods) {
++            if (desc.method != SendspinPairMethod::PAIRING_PSK) {
++                continue;
++            }
++            JsonObject method_obj = methods_array.add<JsonObject>();
++            method_obj["method"] = to_cstr(desc.method);
++            const auto& locations = desc.locations;
++            if (locations.has_value() && !locations->empty()) {
++                JsonArray loc_arr = method_obj["locations"].to<JsonArray>();
++                for (const auto& loc : locations.value()) {
++                    loc_arr.add(loc.c_str());
++                }
++            }
++        }
++    }
++]=])
++string(FIND "${_sendspin_protocol_original}" "${_sendspin_pair_methods_new}" _sendspin_pair_methods_already_applied)
++if(_sendspin_pair_methods_already_applied EQUAL -1)
++    string(FIND "${_sendspin_protocol_original}" "${_sendspin_pair_methods_old}" _sendspin_pair_methods_found)
++    if(_sendspin_pair_methods_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch legacy hello schema: supported_pair_methods serializer not found")
++    endif()
++    string(REPLACE "${_sendspin_pair_methods_old}" "${_sendspin_pair_methods_new}"
++        _sendspin_protocol_after_pair_methods "${_sendspin_protocol_after_commands}")
++    file(WRITE "${_sendspin_protocol_source}" "${_sendspin_protocol_after_pair_methods}")
 +endif()
