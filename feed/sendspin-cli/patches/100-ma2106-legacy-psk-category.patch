@@ -1,0 +1,82 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -59,1 +59,80 @@
+ FetchContent_MakeAvailable(sendspin)
++
++# Music Assistant 2.10.x uses aiosendspin 9.x, whose Noise msg1 payload contains
++# psk_id but predates the required psk_category field. Keep category-aware
++# verification for modern peers, but infer the category from the matching local
++# credential when talking to that legacy server.
++set(_sendspin_noise_handshake_source "\${sendspin_SOURCE_DIR}/src/noise_handshake.cpp")
++if(NOT EXISTS "\${_sendspin_noise_handshake_source}")
++    message(FATAL_ERROR "Cannot apply legacy Sendspin PSK-category compatibility: \${_sendspin_noise_handshake_source} not found")
++endif()
++
++file(READ "\${_sendspin_noise_handshake_source}" _sendspin_noise_original)
++set(_sendspin_noise_old [=[
++    auto psk_category = psk_category_from_string(psk_category_code);
++    if (!psk_category.has_value()) {
++        SS_LOGE(TAG, "%s: msg1 payload psk_category missing or unknown ('%s')", log_prefix,
++                psk_category_code.c_str());
++        return std::nullopt;
++    }
++
++    SS_LOGD(TAG, "%s: psk_id='%s' psk_category='%s'", log_prefix, psk_id.c_str(),
++            psk_category_code.c_str());
++
++    auto resolved = record_store.resolve_by_psk_id(psk_id, psk_category.value());
++]=])
++set(_sendspin_noise_new [=[
++    auto psk_category = psk_category_from_string(psk_category_code);
++    std::optional<ResolvedPsk> resolved;
++    if (psk_category.has_value()) {
++        // Current protocol: honor the category explicitly declared by the server.
++        resolved = record_store.resolve_by_psk_id(psk_id, psk_category.value());
++    } else if (psk_category_code.empty()) {
++        // Legacy protocol used by Music Assistant 2.10.x: msg1 only declared psk_id.
++        // Infer its category from local records and reject ambiguous matches.
++        const PskCategory legacy_categories[] = {
++            PskCategory::LONG_TERM, PskCategory::PAIRING, PskCategory::SENTINEL
++        };
++        for (const PskCategory category : legacy_categories) {
++            auto candidate = record_store.resolve_by_psk_id(psk_id, category);
++            if (!candidate.has_value()) {
++                continue;
++            }
++            if (resolved.has_value()) {
++                SS_LOGE(TAG, "%s: legacy msg1 PSK id matches multiple categories; refusing ambiguous handshake",
++                        log_prefix);
++                return std::nullopt;
++            }
++            resolved = candidate;
++            psk_category = category;
++            switch (category) {
++                case PskCategory::LONG_TERM: psk_category_code = "lt"; break;
++                case PskCategory::PAIRING:   psk_category_code = "pr"; break;
++                case PskCategory::SENTINEL:  psk_category_code = "sn"; break;
++            }
++        }
++        if (resolved.has_value()) {
++            SS_LOGI(TAG, "%s: legacy msg1 omitted psk_category; inferred '%s' from local PSK record",
++                    log_prefix, psk_category_code.c_str());
++        }
++    } else {
++        // Do not silently accept an unknown non-empty category from a modern peer.
++        SS_LOGE(TAG, "%s: msg1 payload psk_category missing or unknown ('%s')", log_prefix,
++                psk_category_code.c_str());
++        return std::nullopt;
++    }
++
++    SS_LOGD(TAG, "%s: psk_id='%s' psk_category='%s'", log_prefix, psk_id.c_str(),
++            psk_category_code.c_str());
++]=])
++string(FIND "\${_sendspin_noise_original}" "\${_sendspin_noise_new}" _sendspin_compat_already_applied)
++if(_sendspin_compat_already_applied EQUAL -1)
++    string(FIND "\${_sendspin_noise_original}" "\${_sendspin_noise_old}" _sendspin_compat_old_found)
++    if(_sendspin_compat_old_found EQUAL -1)
++        message(FATAL_ERROR "Cannot patch sendspin-cpp \${SENDSPIN_GIT_TAG}: expected PSK-category parser was not found")
++    endif()
++    string(REPLACE "\${_sendspin_noise_old}" "\${_sendspin_noise_new}" _sendspin_noise_patched
++        "\${_sendspin_noise_original}")
++    file(WRITE "\${_sendspin_noise_handshake_source}" "\${_sendspin_noise_patched}")
++endif()
