@@ -49,7 +49,6 @@
 +                return std::nullopt;
 +            }
 +            resolved = candidate;
-+            psk_category = category;
 +            switch (category) {
 +                case PskCategory::LONG_TERM: psk_category_code = "lt"; break;
 +                case PskCategory::PAIRING:   psk_category_code = "pr"; break;
